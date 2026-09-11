@@ -117,3 +117,5 @@ devtools_options.yaml
 # hace falta publicarlas. Las regenera `flutterfire configure` cuando
 # haga falta (ver SETUP.md, paso 2).
 android/app/google-services.json
+
+SETUP.md
