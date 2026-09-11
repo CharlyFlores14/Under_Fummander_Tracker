@@ -9,6 +9,7 @@ import 'firebase_config.dart';
 import 'models.dart';
 import 'sync/auth_service.dart';
 import 'sync/group_service.dart';
+import 'ui/layout.dart';
 import 'ui/sync_screen.dart';
 
 void main() {
@@ -465,7 +466,7 @@ class _TrackerHomeState extends State<TrackerHome> {
 
     final pages = [_homePage(), _playersPage(), _decksPage(), _historyPage()];
 
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(
         title: const Text(
           '⚔️ Under Fummander Tracker',
@@ -1437,7 +1438,7 @@ class _NewMatchScreenState extends State<NewMatchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(
         title: Text(isEditing ? '✏️ Editar partida' : '⚔️ Nueva partida'),
       ),
@@ -1878,7 +1879,7 @@ class _SeasonsScreenState extends State<SeasonsScreen> {
     final sorted = [...widget.seasons]
       ..sort((a, b) => b.startDate.compareTo(a.startDate));
 
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(title: const Text('🗓️ Temporadas')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _createSeason,
@@ -2159,7 +2160,7 @@ class PlayerStatsScreen extends StatelessWidget {
     final matchups = _matchupsVsDecks.entries.toList()
       ..sort((a, b) => b.value.total.compareTo(a.value.total));
 
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(title: Text(player.name)),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -2379,7 +2380,7 @@ class DeckStatsScreen extends StatelessWidget {
       );
     }
 
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(title: Text(deck.name)),
       body: ListView(
         padding: const EdgeInsets.all(16),

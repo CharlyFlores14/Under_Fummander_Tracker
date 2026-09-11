@@ -1,11 +1,11 @@
 {
-    "name": "under_fummander_tracker",
-    "short_name": "under_fummander_tracker",
+    "name": "Under Fummander Tracker",
+    "short_name": "Fummander",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#151218",
+    "theme_color": "#151218",
+    "description": "Historial de partidas de Magic: the Gathering en formato Commander — ranking, mazos, temporadas y estadísticas del grupo.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

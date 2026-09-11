@@ -18,19 +18,39 @@
 
   <meta charset="UTF-8">
   <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+  <meta name="description" content="Historial de partidas de Magic: the Gathering en formato Commander — ranking, mazos, temporadas y estadísticas del grupo.">
+
+  <!-- Tiñe la barra del navegador del mismo color que la app. -->
+  <meta name="theme-color" content="#151218">
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="under_fummander_tracker">
+  <meta name="apple-mobile-web-app-title" content="Under Fummander Tracker">
   <link rel="apple-touch-icon" href="icons/Icon-192.png">
 
   <!-- Favicon -->
   <link rel="icon" type="image/png" href="favicon.png"/>
 
-  <title>under_fummander_tracker</title>
+  <title>Under Fummander Tracker</title>
   <link rel="manifest" href="manifest.json">
+
+  <style>
+    /*
+      Flutter tarda un momento en arrancar y pintar. Sin esto el
+      navegador muestra su fondo blanco por defecto y se ve un fogonazo
+      justo antes de que aparezca la app, que es oscura.
+
+      #151218 es el colorScheme.surface del tema (deepPurple + dark),
+      o sea exactamente el fondo que Flutter va a pintar encima.
+    */
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: #151218;
+    }
+  </style>
 </head>
 <body>
   <!--

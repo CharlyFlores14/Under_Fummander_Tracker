@@ -1,8 +1,9 @@
-# Activar la sincronización entre teléfonos
+# Activar la sincronización entre teléfonos y navegadores
 
 La app **funciona sin hacer nada de esto**: si no configurás Firebase, guarda todo en el
-teléfono con `SharedPreferences`, exactamente como antes. Esta guía es para el modo
-opcional en el que todo el grupo comparte jugadores, mazos, partidas y temporadas.
+teléfono con `SharedPreferences` (y en el navegador en el `localStorage`, que es lo mismo
+pero en la web), exactamente como antes. Esta guía es para el modo opcional en el que todo
+el grupo comparte jugadores, mazos, partidas y temporadas.
 
 Son pasos de consola web y de terminal que requieren tu cuenta de Google; no se pueden
 hacer desde el repositorio.
@@ -73,13 +74,20 @@ cd <la carpeta del proyecto>
 flutterfire configure
 ```
 
-Elegí el proyecto del paso 1 y marcá al menos **android**.
+Elegí el proyecto del paso 1 y marcá **android** y **web**.
+
+> Marcar **web** no es opcional si querés usar la app en el navegador. En el repo,
+> `DefaultFirebaseOptions.web` es un alias del placeholder de Android; recién cuando
+> `flutterfire configure` reescribe el archivo con la app web registrada, el navegador
+> tiene sus propias credenciales y puede conectarse a Firebase.
 
 Esto genera dos archivos:
 
 - `lib/firebase_options.dart` — **sobrescribe** el placeholder que está en el repo. Es
-  esperado. Por eso nada escrito a mano vive en ese archivo.
-- `android/app/google-services.json`.
+  esperado. Por eso nada escrito a mano vive en ese archivo. Acá quedan las credenciales
+  de las dos plataformas.
+- `android/app/google-services.json`. (La web no necesita ningún archivo aparte: todo lo
+  suyo va en `firebase_options.dart`.)
 
 Apenas aparece ese `google-services.json`, `android/app/build.gradle.kts` empieza a
 aplicar el plugin de Google Services solo (está condicionado a que el archivo exista,
@@ -101,12 +109,16 @@ flutter pub get
 En la consola: **Compilación → Authentication → Comenzar → Sign-in method → Google →
 Habilitar**. Pedí un correo de asistencia y guardá.
 
+Este interruptor vale para las dos plataformas: es el mismo proveedor para el teléfono y
+para el navegador.
+
 ---
 
-## Paso 4 — Registrar la huella SHA-1
+## Paso 4 — Registrar la huella SHA-1 (solo Android)
 
-**Sin esto el login con Google falla siempre**, y el error que devuelve Android no dice
-por qué.
+**Sin esto el login con Google falla siempre** en el teléfono, y el error que devuelve
+Android no dice por qué. En el navegador no hace falta: ahí el login lo resuelve Firebase
+Auth con una ventana emergente, sin firma de aplicación de por medio.
 
 ```bash
 keytool -list -v \
@@ -132,7 +144,12 @@ Volvé a bajar el `google-services.json` actualizado después de agregar la huel
 
 ---
 
-## Paso 5 — Completar `googleWebClientId`
+## Paso 5 — Completar `googleWebClientId` (solo Android)
+
+> El nombre engaña: aunque el cliente OAuth sea "de tipo web", **este valor es para la app
+> Android**. Es lo que `google_sign_in` necesita para que Google devuelva un `idToken`. La
+> versión del navegador no lo usa para nada: Firebase Auth usa el cliente OAuth del
+> proyecto por su cuenta. Si sólo te interesa la web, saltá este paso.
 
 Abrí `android/app/google-services.json` y buscá dentro de `oauth_client` la entrada con
 **`"client_type": 3`** (esa es la de tipo **web**):
@@ -189,7 +206,8 @@ nada más.
 flutter pub get
 flutter analyze
 flutter test
-flutter run
+flutter run              # en el teléfono o el emulador
+flutter run -d chrome    # en el navegador
 ```
 
 Dentro de la app, tocá el ícono de nube ☁️ arriba a la derecha:
@@ -206,11 +224,54 @@ grupo.
 
 ---
 
+## Paso 8 — Publicar la versión web (opcional)
+
+Con `flutter run -d chrome` la app ya anda en tu computadora, pero sólo en tu computadora.
+Para que el resto del grupo la abra desde cualquier lado hay que subirla a algún lado.
+**Firebase Hosting** es gratis en el plan Spark (10 GB de archivos, 360 MB de tráfico por
+día; una build de esta app pesa unos pocos MB) y es el mismo `firebase` que ya usaste en
+el paso 6.
+
+La primera vez, decile a qué proyecto apunta esta computadora:
+
+```bash
+firebase use --add
+```
+
+Elegí el proyecto del paso 1. Eso crea `.firebaserc`, que está en el `.gitignore` porque
+es distinto para cada quien. Lo que sí vive en el repo es `firebase.json`, que ya tiene
+configurado el hosting y las reglas de Firestore.
+
+Después, cada vez que quieras publicar:
+
+```bash
+flutter build web --release
+firebase deploy
+```
+
+`firebase deploy` sube **las dos cosas**: el sitio y las reglas de `firestore.rules`. Al
+terminar imprime la URL, con la forma `https://<tu-proyecto>.web.app`.
+
+> **Por qué justo esa URL.** `signInWithPopup` sólo funciona desde un dominio que esté en
+> **Authentication → Settings → Authorized domains**, y Firebase agrega solo los dominios
+> `*.web.app` y `*.firebaseapp.com` de tu propio proyecto. O sea que ahí el login anda sin
+> tocar nada más. Si algún día le ponés un dominio propio, **hay que agregarlo a mano a esa
+> lista** o el login va a fallar con `unauthorized-domain`.
+
+Un detalle lindo y gratis: la página está declarada como PWA, así que desde el navegador
+del teléfono se puede "Agregar a la pantalla de inicio" y queda como una app más, sin
+pasar por ninguna tienda.
+
+---
+
 ## Qué esperar cuando funciona
 
-- Una partida cargada en un teléfono aparece en los otros en el momento, sin refrescar.
+- Una partida cargada en un teléfono aparece en los otros en el momento, sin refrescar. Lo
+  mismo entre el teléfono y una pestaña del navegador abierta al mismo tiempo: es el mismo
+  grupo y los mismos datos.
 - Sin señal en el local: se puede cargar igual. Firestore encola la escritura y la
-  sincroniza sola cuando vuelve internet.
+  sincroniza sola cuando vuelve internet. En el navegador pasa igual, y la caché sobrevive
+  aunque tengas varias pestañas abiertas.
 - Dos personas cargando partidas distintas la misma noche no se pisan: cada partida es un
   documento aparte.
 - Si alguien edita **la misma** partida al mismo tiempo que otro, gana el último en
@@ -228,6 +289,9 @@ grupo.
 | "El servidor rechazó la operación" | Faltan publicar las reglas (paso 6) |
 | "No existe ningún grupo con ese código" | El código está mal escrito, o el grupo se borró |
 | Anda en debug y falla en la APK de release | Falta el `INTERNET` en el manifest, o el SHA-1 del keystore de release |
+| **En el navegador:** "have not been configured for web" al abrir | No marcaste **web** en `flutterfire configure` (paso 2) |
+| **En el navegador:** "El navegador bloqueó la ventana de Google" | El bloqueador de ventanas emergentes; permitilas para este sitio |
+| **En el navegador:** "Este dominio no está autorizado" | Estás en un dominio propio; agregalo en Authentication → Settings → Authorized domains (paso 8) |
 
 Para ver el motivo real de un rechazo: en la consola, **Firestore → Reglas → Monitor de
 reglas** muestra qué petición se denegó y por qué.
@@ -237,8 +301,10 @@ reglas** muestra qué petición se denegó y por qué.
 ## Volver al modo local
 
 En la pantalla de nube, **Salir del grupo**. La app vuelve a los datos guardados en ese
-teléfono; el historial del grupo no se borra y se puede volver a entrar con el mismo
-código.
+teléfono (o en ese navegador); el historial del grupo no se borra y se puede volver a
+entrar con el mismo código.
 
-Para desactivar la sincronización en todo el proyecto, alcanza con vaciar
-`googleWebClientId` en `lib/firebase_config.dart`.
+Para desactivar la sincronización en Android, alcanza con vaciar `googleWebClientId` en
+`lib/firebase_config.dart`. En el navegador ese valor no se usa, así que para apagarla ahí
+hay que sacar Firebase del proyecto entero (volver `lib/firebase_options.dart` al
+placeholder del repo).

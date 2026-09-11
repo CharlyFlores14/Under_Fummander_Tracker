@@ -61,16 +61,27 @@ class AuthService {
       // La caché offline ya viene activada por defecto en Android/iOS,
       // pero la dejamos explícita: es lo que permite registrar partidas
       // sin señal en el local y que se sincronicen solas después.
+      //
+      // En el navegador también sirve, pero hay que decidir qué pasa con
+      // varias pestañas abiertas: sin webPersistentTabManager, Firestore
+      // usa modo de una sola pestaña y la segunda se queda sin caché en
+      // silencio, que es la peor forma de enterarse.
+      FirebaseFirestore.instance.settings = const Settings(
+        persistenceEnabled: true,
+        cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+        webPersistentTabManager: kIsWeb
+            ? WebPersistentMultipleTabManager()
+            : null,
+      );
+
+      // En el navegador no se usa el paquete google_sign_in: el login va
+      // por signInWithPopup() de Firebase Auth (ver signInWithGoogle),
+      // así que no hay nada que inicializar ni client ID que pedir.
       if (!kIsWeb) {
-        FirebaseFirestore.instance.settings = const Settings(
-          persistenceEnabled: true,
-          cacheSizeBytes: Settings.CACHE_SIZE_UNLIMITED,
+        await GoogleSignIn.instance.initialize(
+          serverClientId: googleWebClientId,
         );
       }
-
-      await GoogleSignIn.instance.initialize(
-        serverClientId: googleWebClientId,
-      );
 
       _initialized = true;
     } on FirebaseException catch (error) {
@@ -91,6 +102,57 @@ class AuthService {
   Future<User> signInWithGoogle() async {
     await ensureInitialized();
 
+    return kIsWeb ? _signInOnWeb() : _signInOnMobile();
+  }
+
+  // En el navegador el login lo resuelve Firebase Auth con una ventana
+  // emergente de Google. No pasa por google_sign_in (que directamente no
+  // soporta authenticate() en web) ni necesita googleWebClientId:
+  // Firebase usa el cliente OAuth del proyecto.
+  Future<User> _signInOnWeb() async {
+    try {
+      final result = await FirebaseAuth.instance.signInWithPopup(
+        GoogleAuthProvider(),
+      );
+
+      final user = result.user;
+
+      if (user == null) {
+        throw SyncException('Firebase no devolvió ningún usuario.');
+      }
+
+      return user;
+    } on FirebaseAuthException catch (error) {
+      throw SyncException(_webSignInMessage(error));
+    }
+  }
+
+  // Los fallos del login web no se parecen a los del teléfono: acá no
+  // hay huella SHA-1 que revisar, hay ventanas emergentes y dominios
+  // autorizados.
+  String _webSignInMessage(FirebaseAuthException error) {
+    switch (error.code) {
+      case 'popup-closed-by-user':
+      case 'cancelled-popup-request':
+        return 'Inicio de sesión cancelado.';
+
+      case 'popup-blocked':
+        return 'El navegador bloqueó la ventana de Google.\n\n'
+            'Permití las ventanas emergentes para este sitio y probá de '
+            'nuevo.';
+
+      case 'unauthorized-domain':
+        return 'Este dominio no está autorizado para iniciar sesión.\n\n'
+            'Agregalo en Firebase → Authentication → Settings → '
+            'Authorized domains. Ver SETUP.md.';
+
+      default:
+        return 'Firebase rechazó el inicio de sesión: '
+            '${error.message ?? error.code}';
+    }
+  }
+
+  Future<User> _signInOnMobile() async {
     final signIn = GoogleSignIn.instance;
 
     if (!signIn.supportsAuthenticate()) {
@@ -149,7 +211,10 @@ class AuthService {
   Future<void> signOut() async {
     if (!_initialized) return;
 
-    await GoogleSignIn.instance.signOut();
+    // En web nunca se inicializó google_sign_in, así que no hay sesión
+    // suya que cerrar: alcanza con la de Firebase.
+    if (!kIsWeb) await GoogleSignIn.instance.signOut();
+
     await FirebaseAuth.instance.signOut();
   }
 }

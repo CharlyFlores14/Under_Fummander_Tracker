@@ -99,3 +99,14 @@ Thumbs.db
 
 # Estado interno de la herramienta de Flutter, no va al repo.
 .flutter_tool_state
+
+# Preferencias locales de DevTools.
+devtools_options.yaml
+
+# A qué proyecto de Firebase apunta ESTA computadora. Lo genera
+# `firebase use --add` y es distinto para cada quien, así que no se
+# comparte. Lo que sí va al repo es firebase.json.
+.firebaserc
+
+# Caché de despliegues de Firebase Hosting.
+.firebase/

@@ -6,6 +6,7 @@ import '../data/tracker_repository.dart';
 import '../firebase_config.dart';
 import '../sync/auth_service.dart';
 import '../sync/group_service.dart';
+import 'layout.dart';
 
 // ============================================================
 // SINCRONIZACIÓN ENTRE DISPOSITIVOS
@@ -282,7 +283,7 @@ class _SyncScreenState extends State<SyncScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return AppScaffold(
       appBar: AppBar(title: const Text('☁️ Sincronización')),
       body: _busy
           ? const Center(child: CircularProgressIndicator())
