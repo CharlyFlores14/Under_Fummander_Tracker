@@ -1,7 +1,15 @@
-import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+
+import 'data/firestore_repository.dart';
+import 'data/local_repository.dart';
+import 'data/tracker_repository.dart';
+import 'firebase_config.dart';
+import 'models.dart';
+import 'sync/auth_service.dart';
+import 'sync/group_service.dart';
+import 'ui/sync_screen.dart';
 
 void main() {
   runApp(const UnderFummanderTracker());
@@ -30,216 +38,13 @@ class UnderFummanderTracker extends StatelessWidget {
 }
 
 // ============================================================
-// MODELOS
+// MODELOS Y STORAGE
 // ============================================================
 
-class Player {
-  final String id;
-  String name;
-
-  Player({required this.id, required this.name});
-
-  Map<String, dynamic> toJson() {
-    return {'id': id, 'name': name};
-  }
-
-  factory Player.fromJson(Map<String, dynamic> json) {
-    return Player(id: json['id'], name: json['name']);
-  }
-}
-
-class Deck {
-  final String id;
-  String name;
-  String commander;
-  String playerId;
-
-  Deck({
-    required this.id,
-    required this.name,
-    required this.commander,
-    required this.playerId,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'commander': commander,
-      'playerId': playerId,
-    };
-  }
-
-  factory Deck.fromJson(Map<String, dynamic> json) {
-    return Deck(
-      id: json['id'],
-      name: json['name'],
-      commander: json['commander'],
-      playerId: json['playerId'],
-    );
-  }
-}
-
-class MatchRecord {
-  final String id;
-  final DateTime date;
-
-  // playerId -> deckId
-  final Map<String, String> participants;
-
-  final String winnerPlayerId;
-
-  final String? seasonId;
-
-  MatchRecord({
-    required this.id,
-    required this.date,
-    required this.participants,
-    required this.winnerPlayerId,
-    this.seasonId,
-  });
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'date': date.toIso8601String(),
-      'participants': participants,
-      'winnerPlayerId': winnerPlayerId,
-      'seasonId': seasonId,
-    };
-  }
-
-  factory MatchRecord.fromJson(Map<String, dynamic> json) {
-    return MatchRecord(
-      id: json['id'],
-      date: DateTime.parse(json['date']),
-      participants: Map<String, String>.from(json['participants']),
-      winnerPlayerId: json['winnerPlayerId'],
-      seasonId: json['seasonId'] as String?,
-    );
-  }
-}
-
-class Season {
-  final String id;
-  String name;
-  final DateTime startDate;
-  DateTime? endDate;
-
-  Season({
-    required this.id,
-    required this.name,
-    required this.startDate,
-    this.endDate,
-  });
-
-  bool get isActive => endDate == null;
-
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'name': name,
-      'startDate': startDate.toIso8601String(),
-      'endDate': endDate?.toIso8601String(),
-    };
-  }
-
-  factory Season.fromJson(Map<String, dynamic> json) {
-    return Season(
-      id: json['id'],
-      name: json['name'],
-      startDate: DateTime.parse(json['startDate']),
-      endDate: json['endDate'] == null ? null : DateTime.parse(json['endDate']),
-    );
-  }
-}
-
-// ============================================================
-// STORAGE
-// ============================================================
-
-class Storage {
-  static const playersKey = 'uft_players';
-  static const decksKey = 'uft_decks';
-  static const matchesKey = 'uft_matches';
-  static const seasonsKey = 'uft_seasons';
-
-  static Future<void> save({
-    required List<Player> players,
-    required List<Deck> decks,
-    required List<MatchRecord> matches,
-    required List<Season> seasons,
-  }) async {
-    final prefs = await SharedPreferences.getInstance();
-
-    await prefs.setString(
-      playersKey,
-      jsonEncode(players.map((p) => p.toJson()).toList()),
-    );
-
-    await prefs.setString(
-      decksKey,
-      jsonEncode(decks.map((d) => d.toJson()).toList()),
-    );
-
-    await prefs.setString(
-      matchesKey,
-      jsonEncode(matches.map((m) => m.toJson()).toList()),
-    );
-
-    await prefs.setString(
-      seasonsKey,
-      jsonEncode(seasons.map((s) => s.toJson()).toList()),
-    );
-  }
-
-  static Future<Map<String, dynamic>> load() async {
-    final prefs = await SharedPreferences.getInstance();
-
-    final playersData = prefs.getString(playersKey);
-    final decksData = prefs.getString(decksKey);
-    final matchesData = prefs.getString(matchesKey);
-    final seasonsData = prefs.getString(seasonsKey);
-
-    if (playersData == null) {
-      return {
-        'players': <Player>[],
-        'decks': <Deck>[],
-        'matches': <MatchRecord>[],
-        'seasons': <Season>[],
-      };
-    }
-
-    final players = (jsonDecode(playersData) as List)
-        .map((e) => Player.fromJson(Map<String, dynamic>.from(e)))
-        .toList();
-
-    final decks = decksData == null
-        ? <Deck>[]
-        : (jsonDecode(decksData) as List)
-              .map((e) => Deck.fromJson(Map<String, dynamic>.from(e)))
-              .toList();
-
-    final matches = matchesData == null
-        ? <MatchRecord>[]
-        : (jsonDecode(matchesData) as List)
-              .map((e) => MatchRecord.fromJson(Map<String, dynamic>.from(e)))
-              .toList();
-
-    final seasons = seasonsData == null
-        ? <Season>[]
-        : (jsonDecode(seasonsData) as List)
-              .map((e) => Season.fromJson(Map<String, dynamic>.from(e)))
-              .toList();
-
-    return {
-      'players': players,
-      'decks': decks,
-      'matches': matches,
-      'seasons': seasons,
-    };
-  }
-}
+// Los modelos viven en models.dart y la persistencia en data/.
+// La app arranca en modo local (SharedPreferences, sin configuración)
+// y pasa a modo nube cuando entrás a un grupo desde la pantalla de
+// sincronización.
 
 // ============================================================
 // HOME
@@ -265,34 +70,153 @@ class _TrackerHomeState extends State<TrackerHome> {
   // 'ALL' = todas las partidas, 'NONE' = sin temporada, o el id de una temporada
   String historySeasonFilter = 'ALL';
 
+  // _local se mantiene vivo aunque estemos en la nube: es la copia de
+  // este teléfono, y es lo que ofrecemos subir al crear un grupo.
+  final LocalRepository _local = LocalRepository();
+
+  late TrackerRepository _repo = _local;
+
+  String? _activeGroupId;
+
+  StreamSubscription<TrackerData>? _sub;
+
+  String? _syncError;
+
+  bool get isCloudMode => _activeGroupId != null;
+
   @override
   void initState() {
     super.initState();
-    loadData();
+    _boot();
   }
 
-  Future<void> loadData() async {
-    final data = await Storage.load();
+  @override
+  void dispose() {
+    _sub?.cancel();
 
-    players = data['players'] as List<Player>;
-    decks = data['decks'] as List<Deck>;
-    matches = data['matches'] as List<MatchRecord>;
-    seasons = data['seasons'] as List<Season>;
+    if (_repo != _local) _repo.dispose();
+
+    super.dispose();
+  }
+
+  Future<void> _boot() async {
+    // Primero lo local: la app abre al instante y sin depender de la
+    // red ni de que haya un proyecto de Firebase configurado.
+    _apply(await _local.load());
+
+    if (mounted) setState(() => loading = false);
+
+    await _restoreCloudSession();
+  }
+
+  void _apply(TrackerData data) {
+    players = [...data.players];
+    decks = [...data.decks];
+    matches = [...data.matches];
+    seasons = [...data.seasons];
+  }
+
+  // Si la última vez quedamos dentro de un grupo, volvemos a entrar
+  // solos. Cualquier problema (sin configurar, sesión vencida, sin
+  // red) deja la app en modo local en vez de romperla.
+  Future<void> _restoreCloudSession() async {
+    if (!isFirebaseConfigured || !isGoogleSignInConfigured) return;
+
+    final groupId = await GroupService.instance.loadActiveGroupId();
+
+    if (groupId == null) return;
+
+    try {
+      await AuthService.instance.ensureInitialized();
+
+      if (AuthService.instance.currentUser == null) return;
+
+      await _useCloud(groupId, uploadLocalData: false);
+    } on SyncException {
+      // Seguimos en modo local, sin molestar con un error al arrancar.
+    }
+  }
+
+  Future<void> _useCloud(
+    String groupId, {
+    required bool uploadLocalData,
+  }) async {
+    await _sub?.cancel();
+    _sub = null;
+
+    if (_repo != _local) await _repo.dispose();
+
+    final repo = FirestoreRepository(groupId: groupId);
+
+    if (uploadLocalData) {
+      await repo.replaceAll(
+        TrackerData(
+          players: players,
+          decks: decks,
+          matches: matches,
+          seasons: seasons,
+        ),
+      );
+    }
+
+    _repo = repo;
+    _activeGroupId = groupId;
+
+    await GroupService.instance.saveActiveGroupId(groupId);
+
+    _sub = repo.watch().listen(
+      (data) {
+        if (!mounted) return;
+
+        setState(() {
+          _apply(data);
+          _syncError = null;
+        });
+      },
+      onError: (Object error) {
+        if (!mounted) return;
+
+        setState(() => _syncError = '$error');
+      },
+    );
+
+    if (mounted) setState(() {});
+  }
+
+  Future<void> _useLocal() async {
+    await _sub?.cancel();
+    _sub = null;
+
+    if (_repo != _local) await _repo.dispose();
+
+    _repo = _local;
+    _activeGroupId = null;
+
+    await GroupService.instance.saveActiveGroupId(null);
+
+    final data = await _local.load();
 
     if (!mounted) return;
 
     setState(() {
-      loading = false;
+      _apply(data);
+      _syncError = null;
     });
   }
 
-  Future<void> saveData() async {
-    await Storage.save(
-      players: players,
-      decks: decks,
-      matches: matches,
-      seasons: seasons,
-    );
+  // Todo guardado pasa por acá. En local no falla nunca; en la nube sí
+  // puede rebotar (reglas sin publicar, sin permiso), y ahí conviene
+  // avisar en vez de perder el cambio en silencio.
+  Future<void> _persist(Future<void> Function() operation) async {
+    try {
+      await operation();
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('No se pudo guardar: $error')));
+    }
   }
 
   Season? get activeSeason {
@@ -304,13 +228,13 @@ class _TrackerHomeState extends State<TrackerHome> {
 
   Future<void> _createSeason(Season season) async {
     seasons.add(season);
-    await saveData();
+    await _persist(() => _repo.upsertSeason(season));
     setState(() {});
   }
 
   Future<void> _closeSeason(Season season) async {
     season.endDate = DateTime.now();
-    await saveData();
+    await _persist(() => _repo.upsertSeason(season));
     setState(() {});
   }
 
@@ -419,7 +343,7 @@ class _TrackerHomeState extends State<TrackerHome> {
           activeSeasonId: activeSeason?.id,
           onMatchCreated: (match) async {
             matches.add(match);
-            await saveData();
+            await _persist(() => _repo.upsertMatch(match));
             setState(() {});
           },
         ),
@@ -447,7 +371,7 @@ class _TrackerHomeState extends State<TrackerHome> {
               matches.add(updatedMatch);
             }
 
-            await saveData();
+            await _persist(() => _repo.upsertMatch(updatedMatch));
             setState(() {});
           },
         ),
@@ -473,6 +397,66 @@ class _TrackerHomeState extends State<TrackerHome> {
     setState(() {});
   }
 
+  void _openSync() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SyncScreen(
+          activeGroupId: _activeGroupId,
+
+          // Estando ya en un grupo no tiene sentido ofrecer subir nada:
+          // lo que se ve en pantalla son los datos del grupo, no los de
+          // este teléfono.
+          localData: isCloudMode
+              ? const TrackerData.empty()
+              : TrackerData(
+                  players: players,
+                  decks: decks,
+                  matches: matches,
+                  seasons: seasons,
+                ),
+
+          onGroupJoined: (groupId, uploadLocalData) {
+            return _useCloud(groupId, uploadLocalData: uploadLocalData);
+          },
+
+          onGroupLeft: _useLocal,
+        ),
+      ),
+    );
+
+    setState(() {});
+  }
+
+  Widget _syncBanner(String message) {
+    return Material(
+      color: Colors.red.shade900,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 8, 4, 8),
+        child: Row(
+          children: [
+            const Icon(Icons.cloud_off, size: 20),
+
+            const SizedBox(width: 10),
+
+            Expanded(
+              child: Text(
+                'Problema de sincronización: $message',
+                style: const TextStyle(fontSize: 12),
+              ),
+            ),
+
+            IconButton(
+              icon: const Icon(Icons.close, size: 18),
+              tooltip: 'Ocultar',
+              onPressed: () => setState(() => _syncError = null),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (loading) {
@@ -490,6 +474,13 @@ class _TrackerHomeState extends State<TrackerHome> {
         centerTitle: true,
         actions: [
           IconButton(
+            onPressed: _openSync,
+            icon: Icon(isCloudMode ? Icons.cloud_done : Icons.cloud_off),
+            tooltip: isCloudMode
+                ? 'Sincronizado con el grupo $_activeGroupId'
+                : 'Sincronización (solo en este teléfono)',
+          ),
+          IconButton(
             onPressed: _openSeasons,
             icon: const Icon(Icons.calendar_month),
             tooltip: activeSeason == null
@@ -499,7 +490,13 @@ class _TrackerHomeState extends State<TrackerHome> {
         ],
       ),
 
-      body: pages[currentPage],
+      body: Column(
+        children: [
+          if (_syncError != null) _syncBanner(_syncError!),
+
+          Expanded(child: pages[currentPage]),
+        ],
+      ),
 
       floatingActionButton: currentPage == 0
           ? FloatingActionButton.extended(
@@ -819,14 +816,11 @@ class _TrackerHomeState extends State<TrackerHome> {
                   return;
                 }
 
-                players.add(
-                  Player(
-                    id: DateTime.now().microsecondsSinceEpoch.toString(),
-                    name: name,
-                  ),
-                );
+                final player = Player(id: newId(), name: name);
 
-                await saveData();
+                players.add(player);
+
+                await _persist(() => _repo.upsertPlayer(player));
 
                 if (!mounted) return;
 
@@ -888,7 +882,7 @@ class _TrackerHomeState extends State<TrackerHome> {
 
                 player.name = name;
 
-                await saveData();
+                await _persist(() => _repo.upsertPlayer(player));
 
                 if (!mounted) return;
 
@@ -974,7 +968,7 @@ class _TrackerHomeState extends State<TrackerHome> {
 
     decks.removeWhere((deck) => deck.playerId == player.id);
 
-    await saveData();
+    await _persist(() => _repo.deletePlayer(player.id));
 
     if (!mounted) return;
 
@@ -1154,16 +1148,16 @@ class _TrackerHomeState extends State<TrackerHome> {
                       return;
                     }
 
-                    decks.add(
-                      Deck(
-                        id: DateTime.now().microsecondsSinceEpoch.toString(),
-                        name: name,
-                        commander: commander,
-                        playerId: selectedPlayer,
-                      ),
+                    final deck = Deck(
+                      id: newId(),
+                      name: name,
+                      commander: commander,
+                      playerId: selectedPlayer,
                     );
 
-                    await saveData();
+                    decks.add(deck);
+
+                    await _persist(() => _repo.upsertDeck(deck));
 
                     if (mounted) {
                       Navigator.pop(context);
@@ -1333,7 +1327,7 @@ class _TrackerHomeState extends State<TrackerHome> {
             },
             onDismissed: (direction) async {
               matches.removeWhere((m) => m.id == match.id);
-              await saveData();
+              await _persist(() => _repo.deleteMatch(match.id));
               setState(() {});
             },
             child: Card(
@@ -1683,9 +1677,7 @@ class _NewMatchScreenState extends State<NewMatchScreen> {
     if (!_canRegister()) return;
 
     final match = MatchRecord(
-      id:
-          widget.existingMatch?.id ??
-          DateTime.now().microsecondsSinceEpoch.toString(),
+      id: widget.existingMatch?.id ?? newId(),
 
       date: widget.existingMatch?.date ?? DateTime.now(),
 
@@ -1735,83 +1727,6 @@ class _NewMatchScreenState extends State<NewMatchScreen> {
       Navigator.pop(context);
     }
   }
-}
-
-// ============================================================
-// HELPERS COMPARTIDOS
-// ============================================================
-
-Deck? findDeckById(List<Deck> decks, String id) {
-  for (final deck in decks) {
-    if (deck.id == id) return deck;
-  }
-  return null;
-}
-
-Player? findPlayerById(List<Player> players, String id) {
-  for (final player in players) {
-    if (player.id == id) return player;
-  }
-  return null;
-}
-
-Season? findSeasonById(List<Season> seasons, String? id) {
-  if (id == null) return null;
-  for (final season in seasons) {
-    if (season.id == id) return season;
-  }
-  return null;
-}
-
-// Racha actual: victorias consecutivas contando desde la partida más
-// reciente hacia atrás, hasta la primera derrota. La lista recibida
-// debe venir ordenada de más vieja a más nueva.
-int currentStreak(
-  List<MatchRecord> chronologicalAsc,
-  bool Function(MatchRecord match) isWin,
-) {
-  int streak = 0;
-
-  for (int i = chronologicalAsc.length - 1; i >= 0; i--) {
-    if (isWin(chronologicalAsc[i])) {
-      streak++;
-    } else {
-      break;
-    }
-  }
-
-  return streak;
-}
-
-// Racha récord: la mayor cantidad de victorias consecutivas en toda
-// la historia. La lista recibida debe venir ordenada de más vieja a
-// más nueva.
-int bestStreak(
-  List<MatchRecord> chronologicalAsc,
-  bool Function(MatchRecord match) isWin,
-) {
-  int best = 0;
-  int current = 0;
-
-  for (final match in chronologicalAsc) {
-    if (isWin(match)) {
-      current++;
-      if (current > best) best = current;
-    } else {
-      current = 0;
-    }
-  }
-
-  return best;
-}
-
-class MatchupStat {
-  int wins = 0;
-  int losses = 0;
-
-  int get total => wins + losses;
-
-  double get rate => total == 0 ? 0 : wins / total * 100;
 }
 
 // ============================================================
@@ -1917,7 +1832,7 @@ class _SeasonsScreenState extends State<SeasonsScreen> {
     }
 
     final season = Season(
-      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      id: newId(),
       name: name,
       startDate: DateTime.now(),
     );

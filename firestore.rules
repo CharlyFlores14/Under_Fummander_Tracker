@@ -1,0 +1,74 @@
+rules_version = '2';
+
+// ============================================================
+// Reglas de seguridad de Cloud Firestore
+// ============================================================
+//
+// Modelo: los datos viven bajo un grupo, y el código de invitación ES
+// el id del documento del grupo (groups/A7K2QP). No hay colección de
+// códigos aparte.
+//
+// Publicar con:  firebase deploy --only firestore:rules
+// (o pegar el contenido en Firestore -> Reglas en la consola)
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isMemberOf(groupId) {
+      return signedIn() &&
+        request.auth.uid in
+          get(/databases/$(database)/documents/groups/$(groupId)).data.memberUids;
+    }
+
+    match /groups/{groupId} {
+
+      // Solo los miembros leen el grupo. Nadie puede listar grupos:
+      // sin el código no se llega a nada.
+      allow get: if signedIn() && request.auth.uid in resource.data.memberUids;
+      allow list: if false;
+
+      // Crear un grupo: tenés que quedar como dueño y como único
+      // miembro inicial.
+      //
+      // 'create' solo aplica si el documento NO existe. Si el código
+      // sorteado ya estaba ocupado, la escritura se evalúa como update
+      // y cae en la regla de abajo, que la rechaza. El cliente sortea
+      // otro código y reintenta.
+      allow create: if signedIn()
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.memberUids == [request.auth.uid];
+
+      allow update: if
+        // Un miembro puede editar el grupo (y salirse). Se limita a
+        // memberUids y name a propósito: así una colisión de código
+        // (un set() sobre un grupo que ya existe) también toca
+        // createdAt y queda rechazada en vez de pisar el grupo.
+        (signedIn() && request.auth.uid in resource.data.memberUids
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['memberUids', 'name']))
+        // Alguien de afuera con el código SOLO puede agregarse a sí
+        // mismo, y no puede tocar ningún otro campo.
+        || (signedIn()
+            && request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['memberUids'])
+            && request.resource.data.memberUids ==
+                 resource.data.memberUids.concat([request.auth.uid]));
+
+      allow delete: if signedIn() && resource.data.ownerUid == request.auth.uid;
+
+      // players / decks / matches / seasons / members
+      match /{collection}/{docId} {
+        allow read, write: if isMemberOf(groupId);
+      }
+    }
+
+    // Todo lo que no esté contemplado arriba queda cerrado.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

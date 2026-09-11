@@ -4,6 +4,16 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// El plugin de Google Services aborta la build si no encuentra
+// google-services.json ("File google-services.json is missing"). La
+// sincronización es opcional, así que solo lo aplicamos cuando el
+// archivo está: sin configurar Firebase, la app igual compila y corre
+// en modo local. `flutterfire configure` deja el archivo acá (ver
+// SETUP.md) y a partir de ahí el plugin se aplica solo.
+if (file("google-services.json").exists()) {
+    apply(plugin = "com.google.gms.google-services")
+}
+
 android {
     namespace = "com.example.under_fummander_tracker"
     compileSdk = flutter.compileSdkVersion
@@ -19,7 +29,8 @@ android {
         applicationId = "com.example.under_fummander_tracker"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        // Firebase Auth y Firestore piden como mínimo API 23.
+        minSdk = maxOf(flutter.minSdkVersion, 23)
         targetSdk = flutter.targetSdkVersion
         // Uses the version code from pubspec.yaml. When using split APKs, 1000 * ABI_VERSION
         // is added automatically by Flutter. (https://developer.android.com/studio/build/configure-apk-splits#configure-APK-versions)

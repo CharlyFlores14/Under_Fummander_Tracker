@@ -96,3 +96,6 @@ Thumbs.db
 # Keystore / Signing files (Uncomment if you want to keep your keystore completely private)
 # *.jks
 # *.keystore
+
+# Estado interno de la herramienta de Flutter, no va al repo.
+.flutter_tool_state

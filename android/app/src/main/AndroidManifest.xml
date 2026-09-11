@@ -1,4 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Necesario para sincronizar con Firebase. Estaba declarado solo
+         en src/debug/AndroidManifest.xml, así que las builds de release
+         se quedaban sin red y la sincronización fallaba en silencio. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
     <application
         android:label="under_fummander_tracker"
         android:name="${applicationName}"
