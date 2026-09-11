@@ -118,4 +118,4 @@ devtools_options.yaml
 # haga falta (ver SETUP.md, paso 2).
 android/app/google-services.json
 
-SETUP.md
+/SETUP.md
