@@ -15,7 +15,7 @@ if (file("google-services.json").exists()) {
 }
 
 android {
-    namespace = "com.example.under_fummander_tracker"
+    namespace = "com.tandilneversleeps.under_fummander_tracker"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -26,7 +26,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.under_fummander_tracker"
+        applicationId = "com.tandilneversleeps.under_fummander_tracker"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         // Firebase Auth y Firestore piden como mínimo API 23.

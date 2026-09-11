@@ -110,3 +110,10 @@ devtools_options.yaml
 
 # Caché de despliegues de Firebase Hosting.
 .firebase/
+
+# Credenciales del proyecto de Firebase de ESTA computadora. No son
+# secretos —son claves públicas de cliente, y lo que protege los datos
+# son las reglas de firestore.rules—, pero este repo es público y no
+# hace falta publicarlas. Las regenera `flutterfire configure` cuando
+# haga falta (ver SETUP.md, paso 2).
+android/app/google-services.json
